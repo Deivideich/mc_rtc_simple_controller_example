@@ -1,0 +1,6 @@
+---
+{
+  "MainRobot": "JVRC1",
+  "Enabled": ["SimpleHandFollowerController", "CoM"],
+  "Timestep": 0.005,
+}
