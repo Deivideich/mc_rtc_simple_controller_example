@@ -20,18 +20,17 @@ SimpleHandFollowerController::SimpleHandFollowerController(mc_rbdyn::RobotModule
   postureTask->stiffness(1);
   jointIndex = robot().jointIndexByName("NECK_Y");
   
-  // auto pt = efTask->get_ef_pose();
-  // efTask->set_ef_pose(sva::PTransformd{sva::RotY(-M_PI / 2), Eigen::Vector3d{0.5, -0.5, 1.2}});
-
   mc_rtc::log::success("SimpleHandFollowerController init done ");
 }
 
 bool SimpleHandFollowerController::run()
 {
-  if(comTask->eval().norm() < 0.01)
-  {
-    switch_com_target();
-  }
+  // if(comTask->eval().norm() < 0.01)
+  // {
+  //   switch_com_target();
+  // }
+
+  move_left_hand();
 
   if(std::abs(postureTask->posture()[jointIndex][0] - robot().mbc().q[jointIndex][0]) < 0.05)
   {
@@ -58,6 +57,15 @@ void SimpleHandFollowerController::switch_com_target()
   if(comDown) { comTask->com(comZero - Eigen::Vector3d{0, 0, 0.2}); }
   else { comTask->com(comZero); }
   comDown = !comDown;
+}
+
+void SimpleHandFollowerController::move_left_hand()
+{
+  
+  auto pt = eflTask->get_ef_pose();
+  eflTask->set_ef_pose(sva::PTransformd{sva::RotY(-M_PI / 2), Eigen::Vector3d{0.5, 0.25, 1.1}});
+
+
 }
 
 

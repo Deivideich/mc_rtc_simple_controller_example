@@ -19,6 +19,8 @@ struct SimpleHandFollowerController_DLLAPI SimpleHandFollowerController : public
 
   void switch_com_target();
 
+  void move_left_hand();
+  
 private:
   mc_rtc::Configuration config_;
   int jointIndex = 0;
