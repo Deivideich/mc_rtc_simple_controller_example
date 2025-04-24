@@ -4,15 +4,25 @@ SimpleHandFollowerController::SimpleHandFollowerController(mc_rbdyn::RobotModule
 : mc_control::MCController(rm, dt)
 {
   config_.load(config);
+  comTask = std::make_shared<mc_tasks::CoMTask>(robots(), 0, 10.0, 1000.0);
+  eflTask = std::make_shared<mc_tasks::EndEffectorTask>("l_wrist", robots(), 0, 5.0, 500.0);
+  efrTask = std::make_shared<mc_tasks::EndEffectorTask>("r_wrist", robots(), 0, 5.0, 500.0);
+
   solver().addConstraintSet(contactConstraint);
   solver().addConstraintSet(dynamicsConstraint);
   solver().addTask(postureTask);
+  solver().addTask(eflTask);
+  solver().addTask(efrTask);
+
   addContact({robot().name(), "ground", "LeftFoot", "AllGround"});
   addContact({robot().name(), "ground", "RightFoot", "AllGround"});
-  comTask = std::make_shared<mc_tasks::CoMTask>(robots(), 0, 10.0, 1000.0);
   solver().addTask(comTask);
   postureTask->stiffness(1);
   jointIndex = robot().jointIndexByName("NECK_Y");
+  
+  // auto pt = efTask->get_ef_pose();
+  // efTask->set_ef_pose(sva::PTransformd{sva::RotY(-M_PI / 2), Eigen::Vector3d{0.5, -0.5, 1.2}});
+
   mc_rtc::log::success("SimpleHandFollowerController init done ");
 }
 
@@ -34,6 +44,8 @@ bool SimpleHandFollowerController::run()
 void SimpleHandFollowerController::reset(const mc_control::ControllerResetData & reset_data)
 {
   mc_control::MCController::reset(reset_data);
+  eflTask->reset();
+  efrTask->reset();
   comTask->reset();
   comZero = comTask->com();
 }
