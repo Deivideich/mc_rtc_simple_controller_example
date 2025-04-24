@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mc_control/mc_controller.h>
+#include <mc_tasks/CoMTask.h>
 
 #include "api.h"
 
@@ -13,10 +14,14 @@ struct SimpleHandFollowerController_DLLAPI SimpleHandFollowerController : public
   void reset(const mc_control::ControllerResetData &reset_data) override;
 
   void switch_target();
+
+  void switch_com_target();
+
 private:
   mc_rtc::Configuration config_;
-  std::string jointName_ = "NECK_Y";
   int jointIndex = 0;
   bool goingLeft = true;
-  
+  std::shared_ptr<mc_tasks::CoMTask> comTask;
+  Eigen::Vector3d comZero;
+  bool comDown = false;
 };
