@@ -32,10 +32,8 @@ struct SimpleHandFollowerController_DLLAPI SimpleHandFollowerController : public
   void reset(const mc_control::ControllerResetData &reset_data) override;
 
 private:
-  // Utility helpers
   void createTasks();
   void move_hand(const HandPose &pose, bool isLeft);
-  bool hasReachedTarget(const std::string &frame, const Eigen::Vector3d &target, double threshold = 0.05) const;
 
 private:
   mc_rtc::Configuration config_;
@@ -43,6 +41,7 @@ private:
   HandState state = HandState::RaiseLeft;
   bool previousMovementDone = false;
   bool movementDone = false;
+  float movement_tolerance = 0.1;
 
   HandPose left_hand_initial, left_hand_target;
   HandPose right_hand_initial, right_hand_target;

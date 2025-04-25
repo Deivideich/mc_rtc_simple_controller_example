@@ -41,6 +41,7 @@ void SimpleHandFollowerController::createTasks()
   lookAtTask = std::make_shared<mc_tasks::LookAtTask>(headFrame, Eigen::Vector3d{1.0, 0.0, 0.0}, 1.0, 500.0);
   lookAtTask->stiffness(10.0);
   lookAtTask->damping(10.0);
+
 }
 
 bool SimpleHandFollowerController::run()
@@ -77,21 +78,20 @@ bool SimpleHandFollowerController::run()
       break;
   }
 
+  double left_error = eflTask->eval().norm();
+  double right_error = efrTask->eval().norm();
+
   if (isBoth)
   {
-    double left_error = eflTask->eval().norm();
-    double right_error = efrTask->eval().norm();
-    movementDone = left_error < 0.1 && right_error < 0.1;
+    movementDone = eflTask->eval().norm() < movement_tolerance && efrTask->eval().norm() < movement_tolerance;
   }
   else if (isLeft)
   {
-    const Eigen::Vector3d &target = (state == HandState::RaiseLeft) ? left_hand_target.position : left_hand_initial.position;
-    movementDone = hasReachedTarget("l_wrist", target);
+    movementDone = eflTask->eval().norm() < movement_tolerance;
   }
   else if (isRight)
   {
-    const Eigen::Vector3d &target = (state == HandState::RaiseRight) ? right_hand_target.position : right_hand_initial.position;
-    movementDone = hasReachedTarget("r_wrist", target);
+    movementDone = efrTask->eval().norm() < movement_tolerance;
   }
 
   if (movementDone && !previousMovementDone)
@@ -123,7 +123,7 @@ void SimpleHandFollowerController::reset(const mc_control::ControllerResetData &
   eflTask->reset();
   efrTask->reset();
   comTask->reset();
-  comZero = comTask->com();
+  comTask->com(Eigen::Vector3d{0, 0, 1.0});
 
   const auto &lwrist = robot().frame("l_wrist").position();
   left_hand_initial.position = lwrist.translation();
@@ -142,12 +142,6 @@ void SimpleHandFollowerController::move_hand(const HandPose &pose, bool isLeft)
     eflTask->set_ef_pose(pt);
   else
     efrTask->set_ef_pose(pt);
-}
-
-bool SimpleHandFollowerController::hasReachedTarget(const std::string &frame, const Eigen::Vector3d &target, double threshold) const
-{
-  const Eigen::Vector3d &pos = robot().frame(frame).position().translation();
-  return (pos - target).norm() < threshold;
 }
 
 CONTROLLER_CONSTRUCTOR("SimpleHandFollowerController", SimpleHandFollowerController)
