@@ -25,8 +25,8 @@ SimpleHandFollowerController::SimpleHandFollowerController(
 
   postureTask->stiffness(1);
 
-  left_hand_target = {{0.5, 0.25, 1.1}, {0.7071, 0.0, 0.7071, 0.0}};
-  right_hand_target = {{0.5, -0.25, 1.1}, {0.7071, 0.0, 0.7071, 0.0}};
+  left_hand_target = {{0.5, 0.25, 1.1}, {0.7, 0.0, 0.7, 0.0}};
+  right_hand_target = {{0.5, -0.25, 1.1}, {0.7, 0.0, 0.7, 0.0}};
 
   mc_rtc::log::success("SimpleHandFollowerController init done");
 }
