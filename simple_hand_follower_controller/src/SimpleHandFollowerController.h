@@ -23,6 +23,8 @@ struct SimpleHandFollowerController_DLLAPI SimpleHandFollowerController : public
 
   void return_left_hand();
 
+  void head_look_at_target(mc_rbdyn::Robot &robot, const Eigen::Vector3d &target);
+
 private:
   mc_rtc::Configuration config_;
   
@@ -45,10 +47,11 @@ private:
   bool rightDone = false;
   bool movementDone = false;
   bool previousMovementDone = false;
-  
+
   std::shared_ptr<mc_tasks::CoMTask> comTask;
   std::shared_ptr<mc_tasks::EndEffectorTask> efrTask;
   std::shared_ptr<mc_tasks::EndEffectorTask> eflTask;
+  std::shared_ptr<mc_tasks::OrientationTask> headTask;
 
   Eigen::Vector3d comZero;
   Eigen::Vector3d left_hand_initial_position;

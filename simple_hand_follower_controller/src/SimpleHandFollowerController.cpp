@@ -10,16 +10,20 @@ SimpleHandFollowerController::SimpleHandFollowerController(
   efrTask = std::make_shared<mc_tasks::EndEffectorTask>("r_wrist", robots(), 0,
                                                         5.0, 500.0);
 
+  headTask = std::make_shared<mc_tasks::OrientationTask>(
+      "NECK_Y_S", robots(), 0, 5.0, 500.0);
+      
   solver().addConstraintSet(contactConstraint);
   solver().addConstraintSet(dynamicsConstraint);
   solver().addTask(postureTask);
   solver().addTask(eflTask);
   solver().addTask(efrTask);
+  solver().addTask(comTask);
+  solver().addTask(headTask);
 
   addContact({robot().name(), "ground", "LeftFoot", "AllGround"});
   addContact({robot().name(), "ground", "RightFoot", "AllGround"});
 
-  solver().addTask(comTask);
   postureTask->stiffness(1);
   jointIndex = robot().jointIndexByName("NECK_Y");
 
@@ -32,11 +36,7 @@ SimpleHandFollowerController::SimpleHandFollowerController(
       Eigen::Quaterniond(0.7071, 0.0, 0.7071, 0.0); // 90 deg around Y
 
   mc_rtc::log::success("SimpleHandFollowerController init done ");
-  isLeftHand = false;
-  isRightHand = false;
-  bothHands = false;
 
-  state = 2;
 }
 bool SimpleHandFollowerController::run() {
   // Reset hand activity flags
@@ -98,10 +98,10 @@ bool SimpleHandFollowerController::run() {
   previousMovementDone = movementDone;
 
   // Switch neck target if close enough
-  if (std::abs(postureTask->posture()[jointIndex][0] -
-               robot().mbc().q[jointIndex][0]) < 0.05) {
-    switch_target();
-  }
+  // if (std::abs(postureTask->posture()[jointIndex][0] -
+  //              robot().mbc().q[jointIndex][0]) < 0.05) {
+  //   switch_target();
+  // }
 
   return mc_control::MCController::run();
 }
