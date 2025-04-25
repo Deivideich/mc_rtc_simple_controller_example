@@ -78,9 +78,6 @@ bool SimpleHandFollowerController::run()
       break;
   }
 
-  double left_error = eflTask->eval().norm();
-  double right_error = efrTask->eval().norm();
-
   if (isBoth)
   {
     movementDone = eflTask->eval().norm() < movement_tolerance && efrTask->eval().norm() < movement_tolerance;
