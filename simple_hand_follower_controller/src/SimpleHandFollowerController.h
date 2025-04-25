@@ -28,6 +28,8 @@ private:
   
   int jointIndex = 0;
   int state = 0;
+  int movementDoneCounter = 0;
+
   bool goingLeft = true;
   bool handAtTarget = true;
   bool comDown = false;
@@ -41,7 +43,9 @@ private:
   bool bothWereAtTarget = false;
   bool leftDone = false;
   bool rightDone = false;
-
+  bool movementDone = false;
+  bool previousMovementDone = false;
+  
   std::shared_ptr<mc_tasks::CoMTask> comTask;
   std::shared_ptr<mc_tasks::EndEffectorTask> efrTask;
   std::shared_ptr<mc_tasks::EndEffectorTask> eflTask;

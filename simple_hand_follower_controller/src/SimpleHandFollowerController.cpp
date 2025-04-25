@@ -36,143 +36,68 @@ SimpleHandFollowerController::SimpleHandFollowerController(
   isRightHand = false;
   bothHands = false;
 
-  state = 0;
+  state = 2;
 }
 bool SimpleHandFollowerController::run() {
+  // Reset hand activity flags
+  isLeftHand = false;
+  isRightHand = false;
+  bothHands = false;
+
+  mc_rtc::log::info("State: {}", state);
 
   switch (state) {
-  case 0:
-    isLeftHand = true;
-    isRightHand = false;
-    bothHands = false;
-    break;
-  case 1:
-    isLeftHand = false;
-    isRightHand = true;
-    bothHands = false;
-    break;
-  case 2:
-    isLeftHand = false;
-    isRightHand = false;
-    bothHands = true;
-    break;
-  }
-
-  if (bothHands) {
-    // Always move the hands based on current state
-    if (leftHandAtTarget) {
+    case 0: // Raise left hand
+      isLeftHand = true;
       move_hand(left_hand_target_position, left_hand_target_quaternion, true);
-    } else {
+      break;
+    case 1: // Lower left hand
+      isLeftHand = true;
       move_hand(left_hand_initial_position, left_hand_initial_quaternion, true);
-    }
-
-    if (rightHandAtTarget) {
-      move_hand(right_hand_target_position, right_hand_target_quaternion,
-                false);
-    } else {
-      move_hand(right_hand_initial_position, right_hand_initial_quaternion,
-                false);
-    }
-
-    // Evaluate both hand errors
-    double left_error = eflTask->eval().norm();
-    double right_error = efrTask->eval().norm();
-
-    // Only toggle when both hands have reached the target
-    if (left_error < 0.05 && right_error < 0.05 && !bothWereAtTarget) {
-      leftHandAtTarget = !leftHandAtTarget;
-      rightHandAtTarget = !rightHandAtTarget;
-      bothWereAtTarget = true;
-    } else if (left_error >= 0.05 || right_error >= 0.05) {
-      bothWereAtTarget = false;
-    }
+      break;
+    case 2: // Raise right hand
+      isRightHand = true;
+      move_hand(right_hand_target_position, right_hand_target_quaternion, false);
+      break;
+    case 3: // Lower right hand
+      isRightHand = true;
+      move_hand(right_hand_initial_position, right_hand_initial_quaternion, false);
+      break;
+    case 4: // Raise both hands
+      bothHands = true;
+      move_hand(left_hand_target_position, left_hand_target_quaternion, true);
+      move_hand(right_hand_target_position, right_hand_target_quaternion, false);
+      break;
+    case 5: // Lower both hands
+      bothHands = true;
+      move_hand(left_hand_initial_position, left_hand_initial_quaternion, true);
+      move_hand(right_hand_initial_position, right_hand_initial_quaternion, false);
+      break;
   }
 
-  else {
-    if (isRightHand) {
-      if (rightHandAtTarget) {
-        move_hand(right_hand_target_position, right_hand_target_quaternion,
-                  false);
-      } else {
-        move_hand(right_hand_initial_position, right_hand_initial_quaternion,
-                  false);
-      }
-      // Check if the hand is close to the current target
-      sva::PTransformd current = robot().frame("r_wrist").position();
-      Eigen::Vector3d current_pos = current.translation();
-      double dist =
-          (current_pos - (rightHandAtTarget ? right_hand_target_position
-                                            : right_hand_initial_position))
-              .norm();
-
-      if (dist < 0.01) {                        // You can tune this threshold
-        rightHandAtTarget = !rightHandAtTarget; // Toggle
-      }
-    }
-    // Move the left hand
-    if (isLeftHand) {
-      if (leftHandAtTarget) {
-        move_hand(left_hand_target_position, left_hand_target_quaternion, true);
-      } else {
-        move_hand(left_hand_initial_position, left_hand_initial_quaternion,
-                  true);
-      }
-      // Check if the hand is close to the current target
-      sva::PTransformd current = robot().frame("l_wrist").position();
-      Eigen::Vector3d current_pos = current.translation();
-      double dist =
-          (current_pos - (leftHandAtTarget ? left_hand_target_position
-                                           : left_hand_initial_position))
-              .norm();
-      if (dist < 0.01) {                      // You can tune this threshold
-        leftHandAtTarget = !leftHandAtTarget; // Toggle
-      }
-    }
-  }
-
-  // Default inactive hands as "done"
-  bool leftDone = (!isLeftHand && !bothHands) ? true : false;
-  bool rightDone = (!isRightHand && !bothHands) ? true : false;
-
-
-  // Check actual hand movement completion
-  if (isLeftHand) {
-    sva::PTransformd current = robot().frame("l_wrist").position();
-    Eigen::Vector3d current_pos = current.translation();
-    double dist =
-        (current_pos - (leftHandAtTarget ? left_hand_target_position
-                                         : left_hand_initial_position))
-            .norm();
-    leftDone = (dist < 0.01);
-  }
-
-  if (isRightHand) {
-    sva::PTransformd current = robot().frame("r_wrist").position();
-    Eigen::Vector3d current_pos = current.translation();
-    double dist =
-        (current_pos - (rightHandAtTarget ? right_hand_target_position
-                                          : right_hand_initial_position))
-            .norm();
-    rightDone = (dist < 0.01);
-  }
+  // Check for completion
+  bool movementDone = false;
 
   if (bothHands) {
     double left_error = eflTask->eval().norm();
     double right_error = efrTask->eval().norm();
-    leftDone = (left_error < 0.05);
-    rightDone = (right_error < 0.05);
+    movementDone = left_error < 0.05 && right_error < 0.05;
+  } else if (isLeftHand) {
+    Eigen::Vector3d pos = robot().frame("l_wrist").position().translation();
+    Eigen::Vector3d target = (state % 2 == 0) ? left_hand_target_position : left_hand_initial_position;
+    movementDone = (pos - target).norm() < 0.05;
+  } else if (isRightHand) {
+    Eigen::Vector3d pos = robot().frame("r_wrist").position().translation();
+    Eigen::Vector3d target = (state % 2 == 0) ? right_hand_target_position : right_hand_initial_position;
+    movementDone = (pos - target).norm() < 0.05;
   }
 
-  // Advance to next state only if motion is done
-  if (leftDone && rightDone) {
-    state++;
-    if (state > 2) {
-      state = 0;
-    }
-    mc_rtc::log::info("Switching to state: {}", state);
+  if (movementDone && !previousMovementDone) {
+    state = (state + 1) % 6; // Cycle through 0 to 5
   }
+  previousMovementDone = movementDone;
 
-  // Switch the target for the neck
+  // Switch neck target if close enough
   if (std::abs(postureTask->posture()[jointIndex][0] -
                robot().mbc().q[jointIndex][0]) < 0.05) {
     switch_target();
@@ -180,6 +105,7 @@ bool SimpleHandFollowerController::run() {
 
   return mc_control::MCController::run();
 }
+
 
 void SimpleHandFollowerController::reset(
     const mc_control::ControllerResetData &reset_data) {
