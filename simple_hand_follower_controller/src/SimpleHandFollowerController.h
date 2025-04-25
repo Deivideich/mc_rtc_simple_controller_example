@@ -4,6 +4,7 @@
 #include <mc_tasks/CoMTask.h>
 #include <mc_tasks/EndEffectorTask.h>
 #include <mc_tasks/MetaTaskLoader.h>
+#include <mc_tasks/LookAtSurfaceTask.h>
 
 #include "api.h"
 
@@ -51,7 +52,7 @@ private:
   std::shared_ptr<mc_tasks::CoMTask> comTask;
   std::shared_ptr<mc_tasks::EndEffectorTask> efrTask;
   std::shared_ptr<mc_tasks::EndEffectorTask> eflTask;
-  std::shared_ptr<mc_tasks::OrientationTask> headTask;
+  std::shared_ptr<mc_tasks::LookAtTask> lookAtTask;
 
   Eigen::Vector3d comZero;
   Eigen::Vector3d left_hand_initial_position;

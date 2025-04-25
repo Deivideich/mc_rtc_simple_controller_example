@@ -10,16 +10,23 @@ SimpleHandFollowerController::SimpleHandFollowerController(
   efrTask = std::make_shared<mc_tasks::EndEffectorTask>("r_wrist", robots(), 0,
                                                         5.0, 500.0);
 
-  headTask = std::make_shared<mc_tasks::OrientationTask>(
-      "NECK_Y_S", robots(), 0, 5.0, 500.0);
-      
+  auto &headFrame =
+      robot().frame("NECK_P_S"); // or "Head" depending on your model
+  lookAtTask = std::make_shared<mc_tasks::LookAtTask>(
+      headFrame, Eigen::Vector3d{1.0, 0.0, 0.0}, // forward in head frame
+      1.0, 500.0);
+
+  // Set the lookAtTask to be a task in the controller
+  lookAtTask->stiffness(10.0);
+  lookAtTask->damping(10.0);
+
   solver().addConstraintSet(contactConstraint);
   solver().addConstraintSet(dynamicsConstraint);
   solver().addTask(postureTask);
   solver().addTask(eflTask);
   solver().addTask(efrTask);
   solver().addTask(comTask);
-  solver().addTask(headTask);
+  solver().addTask(lookAtTask);
 
   addContact({robot().name(), "ground", "LeftFoot", "AllGround"});
   addContact({robot().name(), "ground", "RightFoot", "AllGround"});
@@ -36,7 +43,6 @@ SimpleHandFollowerController::SimpleHandFollowerController(
       Eigen::Quaterniond(0.7071, 0.0, 0.7071, 0.0); // 90 deg around Y
 
   mc_rtc::log::success("SimpleHandFollowerController init done ");
-
 }
 bool SimpleHandFollowerController::run() {
   // Reset hand activity flags
@@ -44,35 +50,37 @@ bool SimpleHandFollowerController::run() {
   isRightHand = false;
   bothHands = false;
 
-  mc_rtc::log::info("State: {}", state);
+  // mc_rtc::log::info("State: {}", state);
 
   switch (state) {
-    case 0: // Raise left hand
-      isLeftHand = true;
-      move_hand(left_hand_target_position, left_hand_target_quaternion, true);
-      break;
-    case 1: // Lower left hand
-      isLeftHand = true;
-      move_hand(left_hand_initial_position, left_hand_initial_quaternion, true);
-      break;
-    case 2: // Raise right hand
-      isRightHand = true;
-      move_hand(right_hand_target_position, right_hand_target_quaternion, false);
-      break;
-    case 3: // Lower right hand
-      isRightHand = true;
-      move_hand(right_hand_initial_position, right_hand_initial_quaternion, false);
-      break;
-    case 4: // Raise both hands
-      bothHands = true;
-      move_hand(left_hand_target_position, left_hand_target_quaternion, true);
-      move_hand(right_hand_target_position, right_hand_target_quaternion, false);
-      break;
-    case 5: // Lower both hands
-      bothHands = true;
-      move_hand(left_hand_initial_position, left_hand_initial_quaternion, true);
-      move_hand(right_hand_initial_position, right_hand_initial_quaternion, false);
-      break;
+  case 0: // Raise left hand
+    isLeftHand = true;
+    move_hand(left_hand_target_position, left_hand_target_quaternion, true);
+    break;
+  case 1: // Lower left hand
+    isLeftHand = true;
+    move_hand(left_hand_initial_position, left_hand_initial_quaternion, true);
+    break;
+  case 2: // Raise right hand
+    isRightHand = true;
+    move_hand(right_hand_target_position, right_hand_target_quaternion, false);
+    break;
+  case 3: // Lower right hand
+    isRightHand = true;
+    move_hand(right_hand_initial_position, right_hand_initial_quaternion,
+              false);
+    break;
+  case 4: // Raise both hands
+    bothHands = true;
+    move_hand(left_hand_target_position, left_hand_target_quaternion, true);
+    move_hand(right_hand_target_position, right_hand_target_quaternion, false);
+    break;
+  case 5: // Lower both hands
+    bothHands = true;
+    move_hand(left_hand_initial_position, left_hand_initial_quaternion, true);
+    move_hand(right_hand_initial_position, right_hand_initial_quaternion,
+              false);
+    break;
   }
 
   // Check for completion
@@ -81,14 +89,16 @@ bool SimpleHandFollowerController::run() {
   if (bothHands) {
     double left_error = eflTask->eval().norm();
     double right_error = efrTask->eval().norm();
-    movementDone = left_error < 0.05 && right_error < 0.05;
+    movementDone = left_error < 0.1 && right_error < 0.1;
   } else if (isLeftHand) {
     Eigen::Vector3d pos = robot().frame("l_wrist").position().translation();
-    Eigen::Vector3d target = (state % 2 == 0) ? left_hand_target_position : left_hand_initial_position;
+    Eigen::Vector3d target = (state % 2 == 0) ? left_hand_target_position
+                                              : left_hand_initial_position;
     movementDone = (pos - target).norm() < 0.05;
   } else if (isRightHand) {
     Eigen::Vector3d pos = robot().frame("r_wrist").position().translation();
-    Eigen::Vector3d target = (state % 2 == 0) ? right_hand_target_position : right_hand_initial_position;
+    Eigen::Vector3d target = (state % 2 == 0) ? right_hand_target_position
+                                              : right_hand_initial_position;
     movementDone = (pos - target).norm() < 0.05;
   }
 
@@ -97,15 +107,24 @@ bool SimpleHandFollowerController::run() {
   }
   previousMovementDone = movementDone;
 
-  // Switch neck target if close enough
-  // if (std::abs(postureTask->posture()[jointIndex][0] -
-  //              robot().mbc().q[jointIndex][0]) < 0.05) {
-  //   switch_target();
-  // }
+  if (bothHands) {
+    mc_rtc::log::info("Both hands target: {} {}", left_hand_target_position,
+                      right_hand_target_position);
+    // Look straight ahead - define a temporary position in world or base frame
+    Eigen::Vector3d forward =
+        robot().frame("NECK_Y_S").position().translation() +
+        Eigen::Vector3d{1.0, 0.0, 0.0};
+    lookAtTask->target(forward); // Calls LookAtTask::target(const Vector3d&)
+  } else if (isLeftHand) {
+    mc_rtc::log::info("Left hand target: {}", left_hand_target_position);
+    lookAtTask->target(robot().frame("l_wrist").position().translation());
+  } else if (isRightHand) {
+    mc_rtc::log::info("Right hand target: {}", right_hand_target_position);
+    lookAtTask->target(robot().frame("r_wrist").position().translation());
+  }
 
   return mc_control::MCController::run();
 }
-
 
 void SimpleHandFollowerController::reset(
     const mc_control::ControllerResetData &reset_data) {
